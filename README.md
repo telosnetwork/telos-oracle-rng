@@ -17,3 +17,7 @@ To begin, navigate to the project directory: `telos-random/`
 ## Deploy
 
     ./deploy.sh random { mainnet | testnet | local }
+
+# Documentation
+
+1. [Contract API](docs/ContractAPI.md)
