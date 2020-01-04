@@ -1,4 +1,4 @@
-// Telos Random is...
+// Telos Requestor is a general purpose Oracle Requestor Service
 //
 // @author Craig Branscom
 // @contract requestor
@@ -7,6 +7,7 @@
 #include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/crypto.hpp>
+#include <eosio/action.hpp>
 
 using namespace std;
 using namespace eosio;
@@ -47,7 +48,10 @@ public:
     ACTION requestrand(name recipient);
 
     //submit a random value
-    ACTION submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig, uint64_t rand);
+    ACTION submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig);
+
+    //broadcast request value
+    ACTION broadcast(uint64_t request_id, name request_type, uint64_t value);
 
     //TODO: other types of requests
 
@@ -82,15 +86,16 @@ public:
     TABLE request {
         uint64_t request_id;
         name request_type; //randomnumber, etc
-        time_point_sec request_time; //
+        time_point_sec request_time; //time request was placed
         name recipient; //account to require_recipient
+        bool validated; //true if validated - required true to broadcast
 
         uint64_t primary_key() const { return request_id; }
         uint64_t by_req_type() const { return request_type.value; }
         uint64_t by_req_time() const { return static_cast<uint64_t>(request_time.utc_seconds); }
         uint64_t by_recipient() const { return recipient.value; }
 
-        EOSLIB_SERIALIZE(request, (request_id)(request_type)(request_time)(recipient))
+        EOSLIB_SERIALIZE(request, (request_id)(request_type)(request_time)(recipient)(validated))
     };
     typedef multi_index<name("requests"), request> requests_table;
 

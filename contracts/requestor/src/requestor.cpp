@@ -167,7 +167,7 @@ ACTION requestor::requestrand(name recipient) {
 
 }
 
-ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig, uint64_t rand) {
+ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig) {
 
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
@@ -182,6 +182,35 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 
 
     //validate
     check(orc.pub_key == recover_key(digest, sig), "public key mismatch");
+
+    //calculate
+    uint64_t rand = 7; //TODO: calculate actual random number from signature
+
+    //update request validation
+    requests.modify(req, same_payer, [&](auto& col) {
+        col.validated = true;
+    });
+
+    //send inline to broadcast
+    action(permission_level{get_self(), name("active")}, get_self(), name("broadcast"), make_tuple(
+        request_id, //request_id
+        name("randomnumber"), //request_type
+        rand //value
+    )).send();
+
+}
+
+ACTION requestor::broadcast(uint64_t request_id, name request_type, uint64_t value) {
+
+    //open requests table, get request
+    requests_table requests(get_self(), get_self().value);
+    auto& req = requests.get(request_id, "request not found");
+
+    //authenticate
+    require_auth(get_self());
+
+    //validate
+    check(req.validated, "request hasn't been validated");
 
     //forward to recipient
     require_recipient(req.recipient);
