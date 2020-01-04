@@ -39,6 +39,9 @@ public:
     //broadcast request value
     ACTION broadcast(uint64_t request_id, name request_type, uint64_t value);
 
+    //pay transaction bw bill
+    ACTION paybwbill();
+
     //======================== oracle actions ========================
 
     //create or add a new oracle public key

@@ -81,6 +81,33 @@ ACTION requestor::clearreq(uint64_t request_id, string memo) {
 
 }
 
+ACTION requestor::broadcast(uint64_t request_id, name request_type, uint64_t value) {
+
+    //open requests table, get request
+    requests_table requests(get_self(), get_self().value);
+    auto& req = requests.get(request_id, "request not found");
+
+    //authenticate
+    require_auth(get_self());
+
+    //validate
+    check(req.validated, "request hasn't been validated");
+
+    //forward to recipient
+    require_recipient(req.recipient);
+
+    //erase request
+    requests.erase(req);
+
+}
+
+ACTION requestor::paybwbill() {
+
+    //authenticate
+    require_auth(get_self());
+
+}
+
 //======================== oracle actions ========================
 
 ACTION requestor::upsertoracle(name oracle_name, public_key pub_key) {
@@ -183,8 +210,19 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 
     //validate
     check(orc.pub_key == recover_key(digest, sig), "public key mismatch");
 
-    //calculate
-    uint64_t rand = 7; //TODO: calculate actual random number from signature
+    //initialize
+    uint64_t rand = 0;
+    uint64_t total = 0;
+
+    //calculate number from signature (little endian)
+    for (char c : sig.data) {
+
+        int v = (int)c;
+        total +=  v;
+
+    }
+
+    check(false, "total: " + total); //testing
 
     //update request validation
     requests.modify(req, same_payer, [&](auto& col) {
@@ -197,25 +235,5 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 
         name("randomnumber"), //request_type
         rand //value
     )).send();
-
-}
-
-ACTION requestor::broadcast(uint64_t request_id, name request_type, uint64_t value) {
-
-    //open requests table, get request
-    requests_table requests(get_self(), get_self().value);
-    auto& req = requests.get(request_id, "request not found");
-
-    //authenticate
-    require_auth(get_self());
-
-    //validate
-    check(req.validated, "request hasn't been validated");
-
-    //forward to recipient
-    require_recipient(req.recipient);
-
-    //erase request
-    requests.erase(req);
 
 }
