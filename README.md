@@ -1,10 +1,10 @@
-# Telos Random
+# Telos Requestor
 
 ## Setup
 
-To begin, navigate to the project directory: `telos-random/`
+To begin, navigate to the project directory: `telos-requestor/`
 
-    mkdir build && mkdir build/random
+    mkdir build && mkdir build/requestor
 
     chmod +x build.sh
 
@@ -12,12 +12,12 @@ To begin, navigate to the project directory: `telos-random/`
 
 ## Build
 
-    ./build.sh random
+    ./build.sh requestor
 
 ## Deploy
 
-    ./deploy.sh random { mainnet | testnet | local }
+    ./deploy.sh requestor { account-name } { mainnet | testnet | local }
 
 # Documentation
 
-1. [Contract API](docs/ContractAPI.md)
+1. [Telos Requestor Contract API](docs/ContractAPI.md)
