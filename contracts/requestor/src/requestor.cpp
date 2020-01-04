@@ -222,7 +222,8 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 
 
     }
 
-    check(false, "total: " + total); //testing
+    //update rand
+    rand = total;
 
     //update request validation
     requests.modify(req, same_payer, [&](auto& col) {
