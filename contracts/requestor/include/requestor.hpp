@@ -4,6 +4,8 @@
 // @contract requestor
 // @version v0.1.0
 
+//TODO: incentive model?
+
 #include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/crypto.hpp>
@@ -34,9 +36,12 @@ public:
     //clear a request
     ACTION clearreq(uint64_t request_id, string memo);
 
+    //broadcast request value
+    ACTION broadcast(uint64_t request_id, name request_type, uint64_t value);
+
     //======================== oracle actions ========================
 
-    //add a new oracle public key
+    //create or add a new oracle public key
     ACTION upsertoracle(name oracle_name, public_key pub_key);
 
     //remove an oracle key
@@ -49,9 +54,6 @@ public:
 
     //submit a random value
     ACTION submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig);
-
-    //broadcast request value
-    ACTION broadcast(uint64_t request_id, name request_type, uint64_t value);
 
     //TODO: other types of requests
 
