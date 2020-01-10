@@ -194,7 +194,7 @@ ACTION requestor::requestrand(name recipient) {
 
 }
 
-ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig) {
+ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature sig) {
 
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
@@ -206,6 +206,13 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, checksum256 
 
     //authenticate
     require_auth(orc.oracle_name);
+
+    //initialize
+    uint8_t rawtrx[8];
+    memcpy(rawtrx, (uint8_t *)&request_id, 8);
+
+    //calculate digest
+    checksum256 digest = sha256((const char *)rawtrx, 8);
 
     //validate
     check(orc.pub_key == recover_key(digest, sig), "public key mismatch");
