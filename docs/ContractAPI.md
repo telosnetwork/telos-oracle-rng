@@ -1,9 +1,9 @@
-# Telos Requestor Contract API
+# Telos Ping Contract API
 
 ## ACTION init()
 
-* string app_name
-* string app_version
+* string contract_name
+* string contract_version
 * name initial_admin
 
 ## ACTION setversion()
@@ -13,10 +13,3 @@
 ## ACTION setadmin()
 
 * name new_admin
-
-## ACTION clearreq()
-
-* uint64_t request_id
-* string memo
-
-## 

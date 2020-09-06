@@ -1,8 +1,8 @@
 #! /bin/bash
 
 # contract
-if [[ "$1" == "requestor" ]]; then
-    contract=requestor
+if [[ "$1" == "ping" ]]; then
+    contract=ping
     
 else
     echo "need contract"
@@ -17,7 +17,7 @@ if [[ "$3" == "mainnet" ]]; then
     url=http://api.tlos.goodblock.io # Telos Mainnet
     network="Telos Mainnet"
 elif [[ "$3" == "testnet" ]]; then
-    url=https://api-test.tlos.goodblock.io/ # Basho Testnet
+    url=https://testnet.telosusa.io/ # Basho Testnet
     network="Telos Testnet"
 elif [[ "$3" == "local" ]]; then
     url=http://127.0.0.1:8888

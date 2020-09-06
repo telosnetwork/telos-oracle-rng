@@ -1,10 +1,10 @@
-# Telos Requestor
+# Telos Ping
 
 ## Setup
 
-To begin, navigate to the project directory: `telos-requestor/`
+To begin, navigate to the project directory: `telos-ping/`
 
-    mkdir build && mkdir build/requestor
+    mkdir build && mkdir build/ping
 
     chmod +x build.sh
 
@@ -12,12 +12,12 @@ To begin, navigate to the project directory: `telos-requestor/`
 
 ## Build
 
-    ./build.sh requestor
+    ./build.sh ping
 
 ## Deploy
 
-    ./deploy.sh requestor { account-name } { mainnet | testnet | local }
+    ./deploy.sh ping { account-name } { mainnet | testnet | local }
 
 # Documentation
 
-1. [Telos Requestor Contract API](docs/ContractAPI.md)
+1. [Telos Ping Contract API](docs/ContractAPI.md)

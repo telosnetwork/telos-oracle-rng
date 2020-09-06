@@ -1,8 +1,8 @@
 #! /bin/bash
 
 # contract
-if [[ "$1" == "requestor" ]]; then
-    contract=requestor
+if [[ "$1" == "ping" ]]; then
+    contract=ping
 else
     echo "need contract"
     exit 0
