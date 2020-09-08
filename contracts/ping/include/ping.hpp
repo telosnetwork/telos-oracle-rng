@@ -68,6 +68,10 @@ CONTRACT ping : public contract
     //auth: admin
     ACTION regoracle(name oracle_account, public_key pub_key);
 
+    //pledge an amount to an oracle account
+    //auth: oracle
+    ACTION pledge(name oracle_account, asset pledge_amount);
+
     //change an oracle's public key
     //auth: oracle
     ACTION setpubkey(name oracle_account, public_key new_pub_key);
@@ -145,6 +149,9 @@ CONTRACT ping : public contract
     //pre: balance exists, sufficient funds in balance, amount > 0
     void sub_balance(name account, asset amount);
 
+    //return true if oracle is qualified to be online
+    bool is_qualified_oracle(name oracle_account);
+
     //======================== contract tables ========================
 
     //config singleton
@@ -157,18 +164,28 @@ CONTRACT ping : public contract
 
         asset min_oracle_pledge = asset(10000'0000, TLOS_SYM); //default 10k TLOS
         uint32_t oracle_retire_duration = 7'776'000; //default 90 days in seconds
-        
-        uint32_t oracle_count; //number of registered oracles
-        asset total_pledged; //total TLOS pledged among all oracles
-        uint32_t balance_count; //number of open accounts
-        asset total_balances; //total TLOS account balances secured by contract
+        uint32_t registered_oracles = 0; //number of registered oracles
+        uint32_t online_oracles = 0; //number of online oracles
+        asset total_pledged = asset(0, TLOS_SYM); //total TLOS pledged among all oracles
 
-        double ping_service_percentage = 1.0; //default 1%
+        uint32_t registered_jobs = 0; //number of registered jobs
+        uint64_t total_requests = 0; //lifetime job requests
+        uint64_t total_fulfilled = 0; //lifetime job fulfillments
+        uint32_t total_pending = 0; //total requests pending fulfillment
+
+        uint32_t balance_count = 0; //number of open accounts
+        asset total_balances = asset(0, TLOS_SYM); //total TLOS account balances secured by contract
+
+        double ping_service_share = 1.0; //default 1%
 
         vector<name> job_categories = { name("rng") }; //list of valid job categories
 
         EOSLIB_SERIALIZE(config, (contract_name)(contract_version)(admin)(last_request_id)
-            (min_oracle_pledge)(oracle_retire_duration)(job_categories))
+            (min_oracle_pledge)(oracle_retire_duration)(registered_oracles)(online_oracles)(total_pledged)
+            (registered_jobs)(total_requests)(total_fulfilled)(total_pending)
+            (balance_count)(total_balances)
+            (ping_service_share)
+            (job_categories))
     };
     typedef singleton<name("config"), config> config_singleton;
 
@@ -178,13 +195,16 @@ CONTRACT ping : public contract
         name oracle_account;
         name status; //online, offline, retiring, frozen
         public_key pub_key; //used to recover signatures
-        asset pledge; //TLOS only
+        asset pledged; //TLOS only
         time_point_sec pledge_release_time; //time pledge can be claimed by retired oracle
+
+        //uint64_t lifetime_fulfilled;
+        //uint32_t average_response_time;
 
         uint64_t primary_key() const { return oracle_account.value; }
         uint64_t by_status() const { return status.value; }
 
-        EOSLIB_SERIALIZE(oracle, (oracle_account)(status)(pub_key)(pledge)(pledge_release_time)) 
+        EOSLIB_SERIALIZE(oracle, (oracle_account)(status)(pub_key)(pledged)(pledge_release_time)) 
     };
     typedef multi_index<name("oracles"), oracle,
         indexed_by<name("bystatus"), const_mem_fun<oracle, uint64_t, &oracle::by_status>>
@@ -202,10 +222,13 @@ CONTRACT ping : public contract
         string input_structure; //JSON input
         string output_structure; //JSON output
 
+        //uint64_t last_request_id; //request id of last request for this job
+
         // double creator_share; //creator share percentage
 
         // uint64_t lifetime_requests;
         // uint64_t lifetime_fulfilled;
+        // uint32_t pending_requests;
 
         // string package_name;
         // string package_version;
@@ -233,9 +256,9 @@ CONTRACT ping : public contract
         string job_input; //JSON
         string job_output; //JSON
 
-        // uint16_t commits_requested;
-        // map<name, string> commits; oracle_name -> commit_signature
-        // map<name, string> secrets; oracle_name -> JSON result
+        // uint16_t commits_requested = 0;
+        // map<name, signature> commits; oracle_account -> commit_signature
+        // map<name, string> secrets; oracle_account -> JSON output
 
         uint64_t primary_key() const { return request_id; }
         uint64_t by_job_name() const { return job_name.value; }

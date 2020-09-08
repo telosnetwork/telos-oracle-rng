@@ -140,8 +140,31 @@ ACTION ping::regoracle(name oracle_account, public_key pub_key)
         col.oracle_account = oracle_account;
         col.status = name("offline");
         col.pub_key = pub_key;
-        col.pledge = asset(0, TLOS_SYM);
+        col.pledged = asset(0, TLOS_SYM);
         col.pledge_release_time = now + uint32_t(315'360'000); //10 years in the future (reset when oracle starts retirement)
+    });
+
+    //update config
+    conf.registered_oracles += 1;
+    configs.set(conf, get_self());
+}
+
+ACTION ping::pledge(name oracle_account, asset pledge_amount)
+{
+    //authenticate
+    require_auth(oracle_account);
+
+    //validate
+    check(pledge_amount.amount > 0, "must pledge positive amount");
+    check(pledge_amount.symbol == TLOS_SYM, "pledge must be denominated in TLOS");
+
+    //open oracles table, get oracle
+    oracles_table oracles(get_self(), get_self().value);
+    auto& orc = oracles.get(oracle_account.value, "oracle not found");
+
+    //update oracle
+    oracles.modify(orc, same_payer, [&](auto& col) {
+        col.pledged += pledge_amount;
     });
 }
 
@@ -155,7 +178,7 @@ ACTION ping::setpubkey(name oracle_account, public_key new_pub_key)
     auto& orc = oracles.get(oracle_account.value, "oracle not found");
 
     //validate
-    //TODO: check(new_pub_key.is_valis(), "invalid public key");
+    //TODO: check(new_pub_key.is_valid(orc.pub_key), "invalid public key");
 
     //update oracle
     oracles.modify(orc, same_payer, [&](auto& col) {
@@ -250,7 +273,7 @@ ACTION ping::claimpledge(name oracle_account)
     check(now > orc.pledge_release_time, "cannot claim pledge until after release time");
 
     //update balances
-    add_balance(oracle_account, orc.pledge);
+    add_balance(oracle_account, orc.pledged);
 }
 
 //======================== job actions ========================
@@ -476,4 +499,25 @@ void ping::sub_balance(name account, asset amount)
     accounts.modify(acct, same_payer, [&](auto& col) {
         col.balance -= amount;
     });
+}
+
+bool ping::is_qualified_oracle(name oracle_account)
+{
+    //open oracles table, find oracle
+    oracles_table oracles(get_self(), get_self().value);
+    auto oracle_itr = oracles.find(oracle_account.value);
+
+    //if oracle account found
+    if (oracle_itr != oracles.end()) {
+        //open config singleton, get config
+        config_singleton configs(get_self(), get_self().value);
+        auto conf = configs.get();
+
+        //validate oracle pledge
+        if (oracle_itr->pledged >= conf.min_oracle_pledge) {
+            return true;
+        }
+    }
+
+    return false;
 }
