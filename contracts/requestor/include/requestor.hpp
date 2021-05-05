@@ -44,10 +44,10 @@ public:
     //======================== request actions ========================
 
     //request a random value
-    ACTION requestrand(name recipient);
+    ACTION requestrand(uint64_t caller_id, uint64_t seed, const name& caller);
 
     //submit a random value
-    ACTION submitrand(uint64_t request_id, name oracle_name, checksum256 digest, signature sig, uint64_t rand);
+    ACTION submitrand(uint64_t request_id, name oracle_name, signature sig);
 
     //TODO: other types of requests
 
@@ -79,19 +79,20 @@ public:
 
     //request entry
     //scope: self
-    TABLE request {
+    TABLE rngrequest {
         uint64_t request_id;
-        name request_type; //randomnumber, etc
-        time_point_sec request_time; //
-        name recipient; //account to require_recipient
+        uint64_t caller_id;
+        checksum256 digest;
+        name oracle1;
+        signature sig1;
+        name oracle2;
+        signature sig2;
+        time_point_sec request_time;
+        name caller; //account to require_recipient
 
         uint64_t primary_key() const { return request_id; }
-        uint64_t by_req_type() const { return request_type.value; }
-        uint64_t by_req_time() const { return static_cast<uint64_t>(request_time.utc_seconds); }
-        uint64_t by_recipient() const { return recipient.value; }
-
-        EOSLIB_SERIALIZE(request, (request_id)(request_type)(request_time)(recipient))
+        EOSLIB_SERIALIZE(rngrequest, (request_id)(caller_id)(digest)(oracle1)(sig1)(oracle2)(sig2)(request_time)(caller))
     };
-    typedef multi_index<name("requests"), request> requests_table;
+    typedef multi_index<name("rngrequests"), rngrequest> rngrequests_table;
 
 };
