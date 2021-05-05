@@ -153,13 +153,12 @@ ACTION requestor::requestrand(uint64_t caller_id,
     if (req_itr == rngrequests.end()) {
         //initialize
         uint8_t data[16];
-        memcpy(data, &req_id, 64);
-        memcpy(data + 64, &seed, 64);
+        memcpy(data, &req_id, 8);
+        memcpy(data + 8, &seed, 8);
 
         //calculate digest
         checksum256 digest = sha256((const char *)data, 128);
 
-        eosio::print("about to emplace, digest is: ", digest, "\n");
         //emplace new request
         rngrequests.emplace(get_self(), [&](auto& col) {
             col.request_id = req_id;
@@ -170,7 +169,6 @@ ACTION requestor::requestrand(uint64_t caller_id,
             col.oracle1 = name("eosio.null");
             col.oracle2 = name("eosio.null");
         });
-        eosio::print("emplaced!!!!\n");
 
     } else {
 
@@ -217,13 +215,12 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature si
         auto sig3_packed = eosio::pack(sig);
         uint8_t last_byte = (uint8_t) sig3_packed.back();
 
-
         if (last_byte % 2 == 0) {
-            memcpy(&data, &sig1_packed, 64);
-            memcpy(&data + 64, &sig2_packed, 64);
+            memcpy(data, &sig1_packed, 64);
+            memcpy(data + 64, &sig2_packed, 64);
         } else {
-            memcpy(&data, &sig2_packed, 64);
-            memcpy(&data + 64, &sig1_packed, 64);
+            memcpy(data, &sig2_packed, 64);
+            memcpy(data + 64, &sig1_packed, 64);
         }
 
         checksum256 random = sha256(data, 128);
