@@ -206,24 +206,22 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature si
             r.sig2 = sig;
         });
     } else {
-
-        //initialize
-        char data[128];
-        
         auto sig1_packed = eosio::pack(req.sig1);
         auto sig2_packed = eosio::pack(req.sig2);
         auto sig3_packed = eosio::pack(sig);
         uint8_t last_byte = (uint8_t) sig3_packed.back();
 
+        auto total_size = sig1_packed.size() + sig2_packed.size();
+        char data[total_size];
         if (last_byte % 2 == 0) {
-            memcpy(data, &sig1_packed, 64);
-            memcpy(data + 64, &sig2_packed, 64);
+            memcpy(data, sig1_packed.data(), sig1_packed.size());
+            memcpy(data + sig1_packed.size(), sig2_packed.data(), sig2_packed.size());
         } else {
-            memcpy(data, &sig2_packed, 64);
-            memcpy(data + 64, &sig1_packed, 64);
+            memcpy(data, sig2_packed.data(), sig2_packed.size());
+            memcpy(data + sig2_packed.size(), sig1_packed.data(), sig1_packed.size());
         }
 
-        checksum256 random = sha256(data, 128);
+        checksum256 random = sha256(data, total_size);
 
         action(
             {get_self(), "active"_n}, 
