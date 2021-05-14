@@ -4,11 +4,12 @@
 
 //======================== admin actions ========================
 
-ACTION requestor::init(string app_name, string app_version, name initial_admin) {
-    
+ACTION requestor::init(string app_name, string app_version, name initial_admin)
+{
+
     //authenticate
     require_auth(get_self());
-    
+
     //open config singleton
     config_singleton configs(get_self(), get_self().value);
 
@@ -18,18 +19,18 @@ ACTION requestor::init(string app_name, string app_version, name initial_admin) 
 
     //initialize
     config initial_conf = {
-        app_name, //app_name
-        app_version, //app_version
+        app_name,      //app_name
+        app_version,   //app_version
         initial_admin, //admin
-        uint64_t(1) //counter
+        uint64_t(1)    //counter
     };
 
     //set initial config
     configs.set(initial_conf, get_self());
-
 }
 
-ACTION requestor::setversion(string new_version) {
+ACTION requestor::setversion(string new_version)
+{
 
     //open config singleton, get config
     config_singleton configs(get_self(), get_self().value);
@@ -43,10 +44,10 @@ ACTION requestor::setversion(string new_version) {
 
     //set new config
     configs.set(conf, get_self());
-
 }
 
-ACTION requestor::setadmin(name new_admin) {
+ACTION requestor::setadmin(name new_admin)
+{
 
     //open config singleton, get config
     config_singleton configs(get_self(), get_self().value);
@@ -60,10 +61,10 @@ ACTION requestor::setadmin(name new_admin) {
 
     //set new config
     configs.set(conf, get_self());
-
 }
 
-ACTION requestor::clearreq(uint64_t request_id, string memo) {
+ACTION requestor::clearreq(uint64_t request_id, string memo)
+{
 
     //open config singleton, get config
     config_singleton configs(get_self(), get_self().value);
@@ -74,62 +75,73 @@ ACTION requestor::clearreq(uint64_t request_id, string memo) {
 
     //open requests table, get request
     rngrequests_table rngrequests(get_self(), get_self().value);
-    auto& req = rngrequests.get(request_id, "request not found");
+    auto &req = rngrequests.get(request_id, "request not found");
 
     //erase request
     rngrequests.erase(req);
-
 }
 
 //======================== oracle actions ========================
 
-ACTION requestor::upsertoracle(name oracle_name, public_key pub_key) {
+ACTION requestor::upsertoracle(name oracle_name, public_key pub_key)
+{
 
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
     auto orc_itr = oracles.find(oracle_name.value);
 
-    //authenticate
-    require_auth(oracle_name);
+    //open config singleton, get config
+    config_singleton configs(get_self(), get_self().value);
+    auto conf = configs.get();
 
-    if (orc_itr == oracles.end()) {
+    if (orc_itr == oracles.end())
+    {
+        //authenticate admin to add a new oracle
+        require_auth(conf.admin);
 
         //emplace new oracle
-        oracles.emplace(oracle_name, [&](auto& col) {
+        oracles.emplace(conf.admin, [&](auto &col) {
             col.oracle_name = oracle_name;
             col.pub_key = pub_key;
         });
-
-    } else {
+    }
+    else
+    {
+        //authenticate oracle to update their key
+        require_auth(oracle_name);
 
         //update oracle
-        oracles.modify(*orc_itr, same_payer, [&](auto& col) {
+        oracles.modify(*orc_itr, same_payer, [&](auto &col) {
             col.pub_key = pub_key;
         });
-
     }
-    
 }
 
-ACTION requestor::rmvoracle(name oracle_name, string memo) {
+ACTION requestor::rmvoracle(name oracle_name, string memo)
+{
 
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
-    auto& orc = oracles.get(oracle_name.value, "oracle not found");
+    auto &orc = oracles.get(oracle_name.value, "oracle not found");
 
     //authenticate
-    require_auth(orc.oracle_name);
+    config_singleton configs(get_self(), get_self().value);
+    auto conf = configs.get();
+
+    //authenticate
+    if (!has_auth(conf.admin))
+        require_auth(orc.oracle_name);
 
     //erase oracle
     oracles.erase(orc);
-
 }
 
 //======================== request actions ========================
 
-ACTION requestor::requestrand(uint64_t caller_id, 
-                         uint64_t seed, 
-                         const name& caller) {
+ACTION requestor::requestrand(uint64_t caller_id,
+                              uint64_t seed,
+                              const name &caller)
+{
 
     //open config singleton, get config
     config_singleton configs(get_self(), get_self().value);
@@ -150,7 +162,8 @@ ACTION requestor::requestrand(uint64_t caller_id,
     rngrequests_table rngrequests(get_self(), get_self().value);
     auto req_itr = rngrequests.find(req_id);
 
-    if (req_itr == rngrequests.end()) {
+    if (req_itr == rngrequests.end())
+    {
         //initialize
         uint8_t data[16];
         memcpy(data, &req_id, 8);
@@ -160,7 +173,7 @@ ACTION requestor::requestrand(uint64_t caller_id,
         checksum256 digest = sha256((const char *)data, 128);
 
         //emplace new request
-        rngrequests.emplace(get_self(), [&](auto& col) {
+        rngrequests.emplace(get_self(), [&](auto &col) {
             col.request_id = req_id;
             col.caller_id = caller_id;
             col.digest = digest;
@@ -169,54 +182,67 @@ ACTION requestor::requestrand(uint64_t caller_id,
             col.oracle1 = name("eosio.null");
             col.oracle2 = name("eosio.null");
         });
-
-    } else {
+    }
+    else
+    {
 
         //request already exists
         check(false, "request id already exists. contact app admin.");
-
     }
-
 }
 
-ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature sig) {
+ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature sig)
+{
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
-    auto& orc = oracles.get(oracle_name.value, "oracle not found");
+    auto &orc = oracles.get(oracle_name.value, "oracle not found");
 
     //authenticate
     require_auth(orc.oracle_name);
 
+    //increment oracle sigcount
+    oracles.modify(orc, same_payer, [&](auto &r) {
+        r.sigcount = r.sigcount + 1;
+    });
+
     //open requests table, get request
     rngrequests_table rngrequests(get_self(), get_self().value);
-    auto& req = rngrequests.get(request_id, "request not found");
+    auto &req = rngrequests.get(request_id, "request not found");
 
     //validate
     check(orc.pub_key == recover_key(req.digest, sig), "signature not from registered public key");
     check(req.oracle1 != oracle_name && req.oracle2 != oracle_name, "Oracle account already submitted a signature");
 
-    if (req.oracle1 == name("eosio.null")) {
-        rngrequests.modify(req, same_payer, [&](auto& r) {
+    if (req.oracle1 == name("eosio.null"))
+    {
+        rngrequests.modify(req, same_payer, [&](auto &r) {
             r.oracle1 = oracle_name;
             r.sig1 = sig;
         });
-    } else if (req.oracle2 == name("eosio.null")) {
-        rngrequests.modify(req, same_payer, [&](auto& r) {
+    }
+    else if (req.oracle2 == name("eosio.null"))
+    {
+        rngrequests.modify(req, same_payer, [&](auto &r) {
             r.oracle2 = oracle_name;
             r.sig2 = sig;
         });
-    } else {
+    }
+    else
+    {
         auto sig1_packed = eosio::pack(req.sig1);
         auto sig2_packed = eosio::pack(req.sig2);
         auto sig3_packed = eosio::pack(sig);
-        uint8_t last_byte = (uint8_t) sig3_packed.back();
+        uint8_t last_byte = (uint8_t)sig3_packed.back();
 
         auto total_size = sig1_packed.size() + sig2_packed.size();
         char data[total_size];
-        if (last_byte % 2 == 0) {
+        if (last_byte % 2 == 0)
+        {
             memcpy(data, sig1_packed.data(), sig1_packed.size());
             memcpy(data + sig1_packed.size(), sig2_packed.data(), sig2_packed.size());
-        } else {
+        }
+        else
+        {
             memcpy(data, sig2_packed.data(), sig2_packed.size());
             memcpy(data + sig2_packed.size(), sig1_packed.data(), sig1_packed.size());
         }
@@ -224,14 +250,12 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature si
         checksum256 random = sha256(data, total_size);
 
         action(
-            {get_self(), "active"_n}, 
+            {get_self(), "active"_n},
             req.caller, "receiverand"_n,
             std::tuple(req.caller_id, random))
-        .send();
-        
+            .send();
+
         //erase request
         rngrequests.erase(req);
-
     }
-
 }

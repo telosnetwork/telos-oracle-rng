@@ -69,11 +69,12 @@ public:
     //scope: self
     TABLE oracle {
         name oracle_name;
+        uint64_t sigcount;
         public_key pub_key;
 
         uint64_t primary_key() const { return oracle_name.value; }
 
-        EOSLIB_SERIALIZE(oracle, (oracle_name)(pub_key)) 
+        EOSLIB_SERIALIZE(oracle, (oracle_name)(sigcount)(pub_key)) 
     };
     typedef multi_index<name("oracles"), oracle> oracles_table;
 
