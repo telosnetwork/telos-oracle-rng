@@ -61,14 +61,26 @@ class RequestOracle {
 
   async doTableCheck() {
     console.log(`Doing table check...`);
-    const results = await this.rpc.get_table_rows({
-      code: this.oracleContract,
-      scope: this.oracleContract,
-      table: REQUESTS_TABLE,
-      limit: 1000,
-    });
+    let more = true;
+    let nextKey = '';
+    while (more) {
+      const results = await this.rpc.get_table_rows({
+        code: this.oracleContract,
+        scope: this.oracleContract,
+        table: REQUESTS_TABLE,
+        limit: 1000,
+        lower_bound: nextKey
+      });
 
-    results.rows.forEach((row) => this.signRow(row));
+      if (results.more) {
+        nextKey = results.next_key;
+        more = true;
+      } else {
+        more = false;
+      }
+
+      results.rows.forEach((row) => this.signRow(row));
+    }
     console.log(`Done doing table check!`);
   }
 
