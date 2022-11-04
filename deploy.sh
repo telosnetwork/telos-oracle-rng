@@ -1,33 +1,17 @@
 #! /bin/bash
-
-# contract
-if [[ "$1" == "requestor" ]]; then
-    contract=requestor
-    
-else
-    echo "need contract"
-    exit 0
-fi
-
-#account
-account=$2
-
 #network
-if [[ "$3" == "mainnet" ]]; then 
-    url=http://api.tlos.goodblock.io # Telos Mainnet
-    network="Telos Mainnet"
-elif [[ "$3" == "testnet" ]]; then
-    url=https://api-test.tlos.goodblock.io/ # Basho Testnet
-    network="Telos Testnet"
-elif [[ "$3" == "local" ]]; then
-    url=http://127.0.0.1:8888
-    network="Local"
+if [[ "$1" == "mainnet" ]]; then
+    url="https://mainnet.telos.caleos.io" # Telos Mainnet
+    network="mainnet"
+elif [[ "$1" == "testnet" ]]; then
+    url="https://testnet.telos.caleos.io" # Telos Testnet
+    network="testnet"
 else
-    echo "need network"
-    exit 0
+    url=http://127.0.0.1:8888
+    network="localhost"
 fi
 
-echo ">>> Deploying $contract contract to $account on $network..."
+echo ">>> Deploying contract to $network..."
 
 # eosio v1.8.0
-cleos -u $url set contract $account ./build/$contract/ $contract.wasm $contract.abi -p $account
+cleos --url "$url" set contract rng.oracle "$PWD/build" rng.oracle.wasm rng.oracle.abi -p rng.oracle

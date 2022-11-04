@@ -1,10 +1,16 @@
-#include "../include/requestor.hpp";
+// Telos Random Number Generation Oracle
+//
+// @author Telos Core Devs
+// @contract rngoracle
+// @version v1.0.0
 
-// using namespace requestor;
+#include "../include/rng.oracle.hpp";
+
+// using namespace rngoracle;
 
 //======================== admin actions ========================
 
-ACTION requestor::init(string app_name, string app_version, name initial_admin)
+ACTION rngoracle::init(string app_name, string app_version, name initial_admin, uint8_t max_callback_tries, uint64_t max_request_timespan)
 {
 
     //authenticate
@@ -22,14 +28,33 @@ ACTION requestor::init(string app_name, string app_version, name initial_admin)
         app_name,      //app_name
         app_version,   //app_version
         initial_admin, //admin
-        uint64_t(1)    //counter
+        uint64_t(1),    //counter
+        max_request_timespan, // max timespan we keep requests
+        max_callback_tries // max callback tries before we delete requests
     };
 
     //set initial config
     configs.set(initial_conf, get_self());
 }
 
-ACTION requestor::setversion(string new_version)
+ACTION rngoracle::setmax(uint8_t max_callback_tries, uint64_t max_request_timespan)
+{
+    //open config singleton, get config
+    config_singleton configs(get_self(), get_self().value);
+    auto conf = configs.get();
+
+    //authenticate
+    require_auth(conf.admin);
+
+    //change max variables
+    conf.max_callback_tries = max_callback_tries;
+    conf.max_request_timespan = max_request_timespan;
+
+    //set new config
+    configs.set(conf, get_self());
+}
+
+ACTION rngoracle::setversion(string new_version)
 {
 
     //open config singleton, get config
@@ -46,7 +71,7 @@ ACTION requestor::setversion(string new_version)
     configs.set(conf, get_self());
 }
 
-ACTION requestor::setadmin(name new_admin)
+ACTION rngoracle::setadmin(name new_admin)
 {
 
     //open config singleton, get config
@@ -63,27 +88,9 @@ ACTION requestor::setadmin(name new_admin)
     configs.set(conf, get_self());
 }
 
-ACTION requestor::clearreq(uint64_t request_id, string memo)
-{
-
-    //open config singleton, get config
-    config_singleton configs(get_self(), get_self().value);
-    auto conf = configs.get();
-
-    //authenticate
-    require_auth(conf.admin);
-
-    //open requests table, get request
-    rngrequests_table rngrequests(get_self(), get_self().value);
-    auto &req = rngrequests.get(request_id, "request not found");
-
-    //erase request
-    rngrequests.erase(req);
-}
-
 //======================== oracle actions ========================
 
-ACTION requestor::upsertoracle(name oracle_name, public_key pub_key)
+ACTION rngoracle::upsertoracle(name oracle_name, public_key pub_key)
 {
 
     //open oracles table, find oracle
@@ -117,7 +124,7 @@ ACTION requestor::upsertoracle(name oracle_name, public_key pub_key)
     }
 }
 
-ACTION requestor::rmvoracle(name oracle_name, string memo)
+ACTION rngoracle::rmvoracle(name oracle_name, string memo)
 {
 
     //open oracles table, find oracle
@@ -137,8 +144,43 @@ ACTION requestor::rmvoracle(name oracle_name, string memo)
 }
 
 //======================== request actions ========================
+ACTION rngoracle::clearreq(){
 
-ACTION requestor::requestrand(uint64_t caller_id,
+    //open config singleton, get config
+    config_singleton configs(get_self(), get_self().value);
+    auto conf = configs.get();
+
+    //open requests table, get request where timestamp & max tries match
+    rngrequests_table rngrequests(get_self(), get_self().value);
+    auto requests_by_timestamp = rngrequests.get_index<"timestamp"_n>();
+    auto upper = requests_by_timestamp.upper_bound(current_time_point().sec_since_epoch() - conf.max_request_timespan); // remove 60s so we get only requests that are at least 1mn old
+    uint64_t count = 15; // max 15 refunds
+    for(auto itr = requests_by_timestamp.begin(); count > 0 && itr != upper; count--) {
+        if(itr->callback_tries >= conf.max_callback_tries){
+            itr = requests_by_timestamp.erase(itr);
+        }
+    }
+
+}
+ACTION rngoracle::rmvrequest(uint64_t request_id){
+
+    //open config singleton, get config
+    config_singleton configs(get_self(), get_self().value);
+    auto conf = configs.get();
+
+    //open requests table, get request
+    rngrequests_table rngrequests(get_self(), get_self().value);
+    auto &req = rngrequests.get(request_id, "request not found");
+
+    //authenticate as caller or admin
+    check(has_auth(req.caller) || has_auth(conf.admin), "Only the request caller on admin can remove requests");
+
+    //erase request
+    rngrequests.erase(req);
+
+}
+
+ACTION rngoracle::requestrand(uint64_t caller_id,
                               uint64_t seed,
                               const name &caller)
 {
@@ -173,7 +215,7 @@ ACTION requestor::requestrand(uint64_t caller_id,
         checksum256 digest = sha256((const char *)data, 128);
 
         //emplace new request
-        rngrequests.emplace(get_self(), [&](auto &col) {
+        rngrequests.emplace(caller, [&](auto &col) {
             col.request_id = req_id;
             col.caller_id = caller_id;
             col.digest = digest;
@@ -191,7 +233,7 @@ ACTION requestor::requestrand(uint64_t caller_id,
     }
 }
 
-ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature sig)
+ACTION rngoracle::submitrand(uint64_t request_id, name oracle_name, signature sig)
 {
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
@@ -248,6 +290,10 @@ ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature si
         }
 
         checksum256 random = sha256(data, total_size);
+
+        rngrequests.modify(req, same_payer, [&](auto &r) {
+            r.callback_tries = r.callback_tries + 1;
+        });
 
         action(
             {get_self(), "active"_n},
