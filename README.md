@@ -1,5 +1,7 @@
 # Telos RNG Oracle
 
+This repository contains the Antelope contract for the Telos Random Number Generation Oracle.
+
 ## Requirements
 
 NodeJS 14+ and NPM
