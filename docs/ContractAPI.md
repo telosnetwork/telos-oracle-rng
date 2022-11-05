@@ -1,4 +1,4 @@
-# Telos Requestor Contract API
+# Telos RNG Oracle Contract API
 
 ## ACTION init()
 
@@ -14,9 +14,20 @@
 
 * name new_admin
 
-## ACTION clearreq()
+## ACTION rmvrequest()
 
 * uint64_t request_id
-* string memo
+
+## ACTION requestrand()
+
+* uint64_t caller_id
+* uint64_t seed
+* name caller
+
+## ACTION submitrand()
+
+* uint64_t request_id
+* name oracle_name
+* signature sig
 
 ## 
