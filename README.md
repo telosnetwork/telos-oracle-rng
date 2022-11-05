@@ -1,6 +1,6 @@
 # Telos RNG Oracle
 
-This repository contains the Antelope contract for the Telos Random Number Generation Oracle.
+This repository contains the Antelope contract for the Telos **R**andom **N**umber **G**eneration Oracle.
 
 ## Requirements
 
