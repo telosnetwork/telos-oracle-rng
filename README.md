@@ -14,7 +14,7 @@ NodeJS 14+ and NPM
 
 ## Deploy
 
-`bash deploy.sh` { mainnet | testnet | local }
+`bash deploy.sh { mainnet | testnet | local }`
 
 # Documentation
 
