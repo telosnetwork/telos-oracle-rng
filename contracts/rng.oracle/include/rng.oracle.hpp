@@ -1,8 +1,8 @@
 // Telos Random Number Generation Oracle
 //
-// @author Telos Core Devs
+// @author Telos Core Developers (telosnetwork)
 // @contract rngoracle
-// @version v1.0.0
+// @version v1.0.1
 
 #include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
@@ -21,38 +21,35 @@ public:
 
     //======================== admin actions ========================
 
-    //intialize the contract
-    ACTION init(string app_name, string app_version, name initial_admin, uint8_t max_callback_tries, uint64_t max_request_timespan);
+    // initialize the contract
+    ACTION init(string app_name, string app_version, name initial_admin);
 
-    //set the contract version
+    // set the contract version
     ACTION setversion(string new_version);
 
-    //set new contract admin
+    // set new contract admin
     ACTION setadmin(name new_admin);
-
-    //set new max for timespan & callback tries
-    ACTION setmax(uint8_t max_callback_tries, uint64_t max_request_timespan);
 
     //======================== oracle actions ========================
 
-    //add a new oracle public key
+    // add a new oracle public key
     ACTION upsertoracle(name oracle_name, public_key pub_key);
 
-    //remove an oracle key
+    // remove an oracle key
     ACTION rmvoracle(name oracle_name, string memo);
 
     //======================== request actions ========================
 
-    //clear a request
-    ACTION clearreq();
+    // callback failure notification
+    ACTION notifyfail(uint64_t request_id, name oracle_name);
 
     // remove a request
     ACTION rmvrequest(uint64_t request_id);
 
-    //request a random value
+    // request a random value
     ACTION requestrand(uint64_t caller_id, uint64_t seed, const name& caller);
 
-    //submit a random value
+    // submit a random value
     ACTION submitrand(uint64_t request_id, name oracle_name, signature sig);
 
     //TODO: other types of requests
@@ -66,10 +63,8 @@ public:
         string app_version;
         name admin;
         uint64_t counter;
-        uint64_t max_request_timespan;
-        uint8_t max_callback_tries;
 
-        EOSLIB_SERIALIZE(config, (app_name)(app_version)(admin)(counter)(max_request_timespan)(max_callback_tries))
+        EOSLIB_SERIALIZE(config, (app_name)(app_version)(admin)(counter))
     };
     typedef singleton<name("config"), config> config_singleton;
 
@@ -98,14 +93,11 @@ public:
         signature sig2;
         time_point_sec request_time;
         name caller; //account to require_recipient
-        uint8_t callback_tries; //account to require_recipient
+        name failed_callback_oracle;
 
         uint64_t primary_key() const { return request_id; }
-        uint64_t by_timestamp() const {return request_time.sec_since_epoch(); }
-        EOSLIB_SERIALIZE(rngrequest, (request_id)(caller_id)(digest)(oracle1)(sig1)(oracle2)(sig2)(request_time)(caller)(callback_tries))
+        EOSLIB_SERIALIZE(rngrequest, (request_id)(caller_id)(digest)(oracle1)(sig1)(oracle2)(sig2)(request_time)(caller)(failed_callback_oracle))
     };
-    typedef multi_index<name("rngrequests"), rngrequest,
-           indexed_by<"timestamp"_n, const_mem_fun<rngrequest, uint64_t, &rngrequest::by_timestamp >>
-    >  rngrequests_table;
+    typedef multi_index<name("rngrequests"), rngrequest> rngrequests_table;
 
 };

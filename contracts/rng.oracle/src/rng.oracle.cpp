@@ -1,8 +1,8 @@
 // Telos Random Number Generation Oracle
 //
-// @author Telos Core Devs
+// @author Telos Core Developers (telosnetwork)
 // @contract rngoracle
-// @version v1.0.0
+// @version v1.0.1
 
 #include "../include/rng.oracle.hpp";
 
@@ -10,7 +10,7 @@
 
 //======================== admin actions ========================
 
-ACTION rngoracle::init(string app_name, string app_version, name initial_admin, uint8_t max_callback_tries, uint64_t max_request_timespan)
+ACTION rngoracle::init(string app_name, string app_version, name initial_admin)
 {
 
     //authenticate
@@ -28,30 +28,11 @@ ACTION rngoracle::init(string app_name, string app_version, name initial_admin, 
         app_name,      //app_name
         app_version,   //app_version
         initial_admin, //admin
-        uint64_t(1),    //counter
-        max_request_timespan, // max timespan we keep requests
-        max_callback_tries // max callback tries before we delete requests
+        uint64_t(1)    //counter
     };
 
     //set initial config
     configs.set(initial_conf, get_self());
-}
-
-ACTION rngoracle::setmax(uint8_t max_callback_tries, uint64_t max_request_timespan)
-{
-    //open config singleton, get config
-    config_singleton configs(get_self(), get_self().value);
-    auto conf = configs.get();
-
-    //authenticate
-    require_auth(conf.admin);
-
-    //change max variables
-    conf.max_callback_tries = max_callback_tries;
-    conf.max_request_timespan = max_request_timespan;
-
-    //set new config
-    configs.set(conf, get_self());
 }
 
 ACTION rngoracle::setversion(string new_version)
@@ -144,24 +125,32 @@ ACTION rngoracle::rmvoracle(name oracle_name, string memo)
 }
 
 //======================== request actions ========================
-ACTION rngoracle::clearreq(){
+ACTION rngoracle::notifyfail(uint64_t request_id, name oracle_name){
+    // open oracles table, find oracle
+    oracles_table oracles(get_self(), get_self().value);
+    auto &orc = oracles.get(oracle_name.value, "oracle not found");
 
-    //open config singleton, get config
-    config_singleton configs(get_self(), get_self().value);
-    auto conf = configs.get();
+    // authenticate as oracle
+    require_auth(orc.oracle_name);
 
-    //open requests table, get request where timestamp & max tries match
+    // open requests table, get request
     rngrequests_table rngrequests(get_self(), get_self().value);
-    auto requests_by_timestamp = rngrequests.get_index<"timestamp"_n>();
-    auto upper = requests_by_timestamp.upper_bound(current_time_point().sec_since_epoch() - conf.max_request_timespan); // remove 60s so we get only requests that are at least 1mn old
-    uint64_t count = 15; // max 15 refunds
-    for(auto itr = requests_by_timestamp.begin(); count > 0 && itr != upper; count--) {
-        if(itr->callback_tries >= conf.max_callback_tries){
-            itr = requests_by_timestamp.erase(itr);
-        }
-    }
+    auto &req = rngrequests.get(request_id, "request not found");
+    check(req.oracle1 != oracle_name && req.oracle2 != oracle_name, "This oracle is among the first two oracle signers and hence cannot have tried to execute the callback");
 
+    // if that request has had a failure already
+    if(req.failed_callback_oracle && req.failed_callback_oracle != name("eosio.null")){
+        // check caller is not the same oracle as notifier & delete
+        check(req.failed_callback_oracle != oracle_name, "This oracle already notified a callback failure");
+        rngrequests.erase(req);
+    } else {
+        // add failure flag
+        rngrequests.modify(req, same_payer, [&](auto &col) {
+            col.failed_callback_oracle = oracle_name;
+        });
+    }
 }
+
 ACTION rngoracle::rmvrequest(uint64_t request_id){
 
     //open config singleton, get config
@@ -173,7 +162,7 @@ ACTION rngoracle::rmvrequest(uint64_t request_id){
     auto &req = rngrequests.get(request_id, "request not found");
 
     //authenticate as caller or admin
-    check(has_auth(req.caller) || has_auth(conf.admin), "Only the request caller on admin can remove requests");
+    check(has_auth(req.caller) || has_auth(conf.admin), "Only the request caller or admin can remove requests");
 
     //erase request
     rngrequests.erase(req);
@@ -223,11 +212,11 @@ ACTION rngoracle::requestrand(uint64_t caller_id,
             col.caller = caller;
             col.oracle1 = name("eosio.null");
             col.oracle2 = name("eosio.null");
+            col.failed_callback_oracle = name("eosio.null");
         });
     }
     else
     {
-
         //request already exists
         check(false, "request id already exists. contact app admin.");
     }
@@ -290,10 +279,6 @@ ACTION rngoracle::submitrand(uint64_t request_id, name oracle_name, signature si
         }
 
         checksum256 random = sha256(data, total_size);
-
-        rngrequests.modify(req, same_payer, [&](auto &r) {
-            r.callback_tries = r.callback_tries + 1;
-        });
 
         action(
             {get_self(), "active"_n},
