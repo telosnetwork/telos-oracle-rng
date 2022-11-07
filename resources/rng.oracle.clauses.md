@@ -1,5 +1,5 @@
 <h1 class="clause">Intent</h1>
-The intention of the authors and invoker of this smart contract is to ...
+The intention of the authors and invoker of this smart contract is to get a truly random number generation
 
 <h1 class="clause">Term</h1>
 This Contract expires at the conclusion of code execution.
