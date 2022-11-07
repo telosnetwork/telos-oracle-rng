@@ -52,8 +52,6 @@ public:
     // submit a random value
     ACTION submitrand(uint64_t request_id, name oracle_name, signature sig);
 
-    //TODO: other types of requests
-
     //======================== contract tables ========================
 
     //config singleton

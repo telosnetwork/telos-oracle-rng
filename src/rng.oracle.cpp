@@ -136,12 +136,15 @@ ACTION rngoracle::notifyfail(uint64_t request_id, name oracle_name){
     // open requests table, get request
     rngrequests_table rngrequests(get_self(), get_self().value);
     auto &req = rngrequests.get(request_id, "request not found");
-    check(req.oracle1 != oracle_name && req.oracle2 != oracle_name, "This oracle is among the first two oracle signers and hence cannot have tried to execute the callback");
+
+    // check oracles
+    check(req.oracle1 != name("eosio.null") && req.oracle2 != name("eosio.null"), "This request hasn't been signed yet");
+    check(req.oracle1 != oracle_name && req.oracle2 != oracle_name, "The notifier is among the first two signers and hence cannot have tried to execute the callback");
 
     // if that request has had a failure already
     if(req.failed_callback_oracle && req.failed_callback_oracle != name("eosio.null")){
         // check caller is not the same oracle as notifier & delete
-        check(req.failed_callback_oracle != oracle_name, "This oracle already notified a callback failure");
+        check(req.failed_callback_oracle != oracle_name, "This oracle already notified the contract of a callback failure");
         rngrequests.erase(req);
     } else {
         // add failure flag
