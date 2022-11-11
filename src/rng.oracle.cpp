@@ -70,7 +70,6 @@ ACTION rngoracle::setadmin(name new_admin)
 }
 
 //======================== oracle actions ========================
-
 ACTION rngoracle::upsertoracle(name oracle_name, public_key pub_key)
 {
 
@@ -142,14 +141,14 @@ ACTION rngoracle::notifyfail(uint64_t request_id, name oracle_name){
     check(req.oracle1 != oracle_name && req.oracle2 != oracle_name, "The notifier is among the first two signers and hence cannot have tried to execute the callback");
 
     // if that request has had a failure already
-    if(req.failed_callback_oracle && req.failed_callback_oracle != name("eosio.null")){
+    if(req.failed_callback_oracle && req.failed_callback_oracle.value() != name("eosio.null")){
         // check caller is not the same oracle as notifier & delete
-        check(req.failed_callback_oracle != oracle_name, "This oracle already notified the contract of a callback failure");
+        check(req.failed_callback_oracle.value() != oracle_name, "This oracle already notified the contract of a callback failure");
         rngrequests.erase(req);
     } else {
         // add failure flag
         rngrequests.modify(req, same_payer, [&](auto &col) {
-            col.failed_callback_oracle = oracle_name;
+            col.failed_callback_oracle.emplace(oracle_name);
         });
     }
 }
@@ -215,7 +214,7 @@ ACTION rngoracle::requestrand(uint64_t caller_id,
             col.caller = caller;
             col.oracle1 = name("eosio.null");
             col.oracle2 = name("eosio.null");
-            col.failed_callback_oracle = name("eosio.null");
+            col.failed_callback_oracle.emplace(name("eosio.null"));
         });
     }
     else

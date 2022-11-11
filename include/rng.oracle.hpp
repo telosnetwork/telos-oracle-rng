@@ -7,6 +7,7 @@
 #include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/crypto.hpp>
+#include <eosio/binary_extension.hpp>
 
 using namespace std;
 using namespace eosio;
@@ -91,7 +92,7 @@ public:
         signature sig2;
         time_point_sec request_time;
         name caller; //account to require_recipient
-        name failed_callback_oracle;
+        binary_extension<name> failed_callback_oracle;
 
         uint64_t primary_key() const { return request_id; }
         EOSLIB_SERIALIZE(rngrequest, (request_id)(caller_id)(digest)(oracle1)(sig1)(oracle2)(sig2)(request_time)(caller)(failed_callback_oracle))
