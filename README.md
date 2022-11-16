@@ -1,23 +1,24 @@
-# Telos Requestor
+# Telos RNG Oracle
+
+This repository contains the Antelope contract for the Telos Random Number Generation (RNG) Oracle.
+
+## Requirements
+
+NodeJS 14+ and NPM
 
 ## Setup
 
-To begin, navigate to the project directory: `telos-requestor/`
-
-    mkdir build && mkdir build/requestor
-
-    chmod +x build.sh
-
-    chmod +x deploy.sh
+`npm install`
 
 ## Build
 
-    ./build.sh requestor
+`bash build.sh`
 
 ## Deploy
 
-    ./deploy.sh requestor { account-name } { mainnet | testnet | local }
+`bash deploy.sh { mainnet | testnet | local }`
 
 # Documentation
 
-1. [Telos Requestor Contract API](docs/ContractAPI.md)
+- [Consumer documentation](https://github.com/telosnetwork/telos-oracle-rng/docs/Consumer.md)
+- [Oracle documentation](https://github.com/telosnetwork/telos-oracle-rng/docs/Oracle.md)

@@ -1,55 +1,57 @@
-// Telos Random is...
+// Telos Random Number Generation Oracle
 //
-// @author Craig Branscom
-// @contract requestor
-// @version v0.1.0
+// @author Telos Core Developers (telosnetwork)
+// @contract rngoracle
+// @version v1.0.1
 
 #include <eosio/eosio.hpp>
 #include <eosio/singleton.hpp>
 #include <eosio/crypto.hpp>
+#include <eosio/binary_extension.hpp>
 
 using namespace std;
 using namespace eosio;
 
-CONTRACT requestor : public contract {
+CONTRACT rngoracle : public contract {
 
 public:
 
-    requestor(name self, name code, datastream<const char*> ds) : contract(self, code, ds) {};
+    rngoracle(name self, name code, datastream<const char*> ds) : contract(self, code, ds) {};
 
-    ~requestor() {};
+    ~rngoracle() {};
 
     //======================== admin actions ========================
 
-    //intialize the contract
+    // initialize the contract
     ACTION init(string app_name, string app_version, name initial_admin);
 
-    //set the contract version
+    // set the contract version
     ACTION setversion(string new_version);
 
-    //set new contract admin
+    // set new contract admin
     ACTION setadmin(name new_admin);
-
-    //clear a request
-    ACTION clearreq(uint64_t request_id, string memo);
 
     //======================== oracle actions ========================
 
-    //add a new oracle public key
+    // add a new oracle public key
     ACTION upsertoracle(name oracle_name, public_key pub_key);
 
-    //remove an oracle key
+    // remove an oracle key
     ACTION rmvoracle(name oracle_name, string memo);
 
     //======================== request actions ========================
 
-    //request a random value
+    // callback failure notification
+    ACTION notifyfail(uint64_t request_id, name oracle_name);
+
+    // remove a request
+    ACTION rmvrequest(uint64_t request_id);
+
+    // request a random value
     ACTION requestrand(uint64_t caller_id, uint64_t seed, const name& caller);
 
-    //submit a random value
+    // submit a random value
     ACTION submitrand(uint64_t request_id, name oracle_name, signature sig);
-
-    //TODO: other types of requests
 
     //======================== contract tables ========================
 
@@ -65,7 +67,7 @@ public:
     };
     typedef singleton<name("config"), config> config_singleton;
 
-    //oracle keys
+    // Signers
     //scope: self
     TABLE oracle {
         name oracle_name;
@@ -78,7 +80,7 @@ public:
     };
     typedef multi_index<name("oracles"), oracle> oracles_table;
 
-    //request entry
+    // Request
     //scope: self
     TABLE rngrequest {
         uint64_t request_id;
@@ -90,9 +92,10 @@ public:
         signature sig2;
         time_point_sec request_time;
         name caller; //account to require_recipient
+        binary_extension<name> failed_callback_oracle;
 
         uint64_t primary_key() const { return request_id; }
-        EOSLIB_SERIALIZE(rngrequest, (request_id)(caller_id)(digest)(oracle1)(sig1)(oracle2)(sig2)(request_time)(caller))
+        EOSLIB_SERIALIZE(rngrequest, (request_id)(caller_id)(digest)(oracle1)(sig1)(oracle2)(sig2)(request_time)(caller)(failed_callback_oracle))
     };
     typedef multi_index<name("rngrequests"), rngrequest> rngrequests_table;
 

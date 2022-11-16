@@ -1,10 +1,16 @@
-#include "../include/requestor.hpp";
+// Telos Random Number Generation Oracle
+//
+// @author Telos Core Developers (telosnetwork)
+// @contract rngoracle
+// @version v1.0.1
 
-// using namespace requestor;
+#include "../include/rng.oracle.hpp";
+
+// using namespace rngoracle;
 
 //======================== admin actions ========================
 
-ACTION requestor::init(string app_name, string app_version, name initial_admin)
+ACTION rngoracle::init(string app_name, string app_version, name initial_admin)
 {
 
     //authenticate
@@ -29,7 +35,7 @@ ACTION requestor::init(string app_name, string app_version, name initial_admin)
     configs.set(initial_conf, get_self());
 }
 
-ACTION requestor::setversion(string new_version)
+ACTION rngoracle::setversion(string new_version)
 {
 
     //open config singleton, get config
@@ -46,7 +52,7 @@ ACTION requestor::setversion(string new_version)
     configs.set(conf, get_self());
 }
 
-ACTION requestor::setadmin(name new_admin)
+ACTION rngoracle::setadmin(name new_admin)
 {
 
     //open config singleton, get config
@@ -63,27 +69,8 @@ ACTION requestor::setadmin(name new_admin)
     configs.set(conf, get_self());
 }
 
-ACTION requestor::clearreq(uint64_t request_id, string memo)
-{
-
-    //open config singleton, get config
-    config_singleton configs(get_self(), get_self().value);
-    auto conf = configs.get();
-
-    //authenticate
-    require_auth(conf.admin);
-
-    //open requests table, get request
-    rngrequests_table rngrequests(get_self(), get_self().value);
-    auto &req = rngrequests.get(request_id, "request not found");
-
-    //erase request
-    rngrequests.erase(req);
-}
-
 //======================== oracle actions ========================
-
-ACTION requestor::upsertoracle(name oracle_name, public_key pub_key)
+ACTION rngoracle::upsertoracle(name oracle_name, public_key pub_key)
 {
 
     //open oracles table, find oracle
@@ -117,7 +104,7 @@ ACTION requestor::upsertoracle(name oracle_name, public_key pub_key)
     }
 }
 
-ACTION requestor::rmvoracle(name oracle_name, string memo)
+ACTION rngoracle::rmvoracle(name oracle_name, string memo)
 {
 
     //open oracles table, find oracle
@@ -137,8 +124,54 @@ ACTION requestor::rmvoracle(name oracle_name, string memo)
 }
 
 //======================== request actions ========================
+ACTION rngoracle::notifyfail(uint64_t request_id, name oracle_name){
+    // open oracles table, find oracle
+    oracles_table oracles(get_self(), get_self().value);
+    auto &orc = oracles.get(oracle_name.value, "oracle not found");
 
-ACTION requestor::requestrand(uint64_t caller_id,
+    // authenticate as oracle
+    require_auth(orc.oracle_name);
+
+    // open requests table, get request
+    rngrequests_table rngrequests(get_self(), get_self().value);
+    auto &req = rngrequests.get(request_id, "request not found");
+
+    // check oracles
+    check(req.oracle1 != name("eosio.null") && req.oracle2 != name("eosio.null"), "This request hasn't been signed yet");
+    check(req.oracle1 != oracle_name && req.oracle2 != oracle_name, "The notifier is among the first two signers and hence cannot have tried to execute the callback");
+
+    // if that request has had a failure already
+    if(req.failed_callback_oracle && req.failed_callback_oracle.value() != name("eosio.null")){
+        // check caller is not the same oracle as notifier & delete
+        check(req.failed_callback_oracle.value() != oracle_name, "This oracle already notified the contract of a callback failure");
+        rngrequests.erase(req);
+    } else {
+        // add failure flag
+        rngrequests.modify(req, same_payer, [&](auto &col) {
+            col.failed_callback_oracle.emplace(oracle_name);
+        });
+    }
+}
+
+ACTION rngoracle::rmvrequest(uint64_t request_id){
+
+    //open config singleton, get config
+    config_singleton configs(get_self(), get_self().value);
+    auto conf = configs.get();
+
+    //open requests table, get request
+    rngrequests_table rngrequests(get_self(), get_self().value);
+    auto &req = rngrequests.get(request_id, "request not found");
+
+    //authenticate as caller or admin
+    check(has_auth(req.caller) || has_auth(conf.admin), "Only the request caller or admin can remove requests");
+
+    //erase request
+    rngrequests.erase(req);
+
+}
+
+ACTION rngoracle::requestrand(uint64_t caller_id,
                               uint64_t seed,
                               const name &caller)
 {
@@ -173,7 +206,7 @@ ACTION requestor::requestrand(uint64_t caller_id,
         checksum256 digest = sha256((const char *)data, 128);
 
         //emplace new request
-        rngrequests.emplace(get_self(), [&](auto &col) {
+        rngrequests.emplace(caller, [&](auto &col) {
             col.request_id = req_id;
             col.caller_id = caller_id;
             col.digest = digest;
@@ -181,17 +214,17 @@ ACTION requestor::requestrand(uint64_t caller_id,
             col.caller = caller;
             col.oracle1 = name("eosio.null");
             col.oracle2 = name("eosio.null");
+            col.failed_callback_oracle.emplace(name("eosio.null"));
         });
     }
     else
     {
-
         //request already exists
         check(false, "request id already exists. contact app admin.");
     }
 }
 
-ACTION requestor::submitrand(uint64_t request_id, name oracle_name, signature sig)
+ACTION rngoracle::submitrand(uint64_t request_id, name oracle_name, signature sig)
 {
     //open oracles table, find oracle
     oracles_table oracles(get_self(), get_self().value);
