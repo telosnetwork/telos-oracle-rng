@@ -1,4 +1,4 @@
-# Telos RNG Oracle Contract API
+# Telos RNG Oracle Contract Actions
 
 ## ACTION init()
 
