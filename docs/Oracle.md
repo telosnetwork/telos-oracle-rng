@@ -1,1 +1,0 @@
-# Telos RNG Oracle guide
