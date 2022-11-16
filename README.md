@@ -21,4 +21,3 @@ NodeJS 14+ and NPM
 # Documentation
 
 - [Consumer documentation](https://github.com/telosnetwork/telos-oracle-rng/docs/Consumer.md)
-- [Oracle documentation](https://github.com/telosnetwork/telos-oracle-rng/docs/Oracle.md)
